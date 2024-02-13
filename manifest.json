@@ -1,0 +1,10 @@
+{
+  "domain": "discord_sensor",
+  "name": "Discord Sensor",
+  "documentation": "https://example.com",
+  "dependencies": [],
+  "codeowners": ["@yourusername"],
+  "version": "1.0.0",
+  "requirements": ["aiohttp"], // If you need any Python libraries for API calls etc.
+  "iot_class": "Cloud Polling" // Depending on your bot's communication mechanism
+}

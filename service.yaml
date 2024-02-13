@@ -1,0 +1,6 @@
+send_to_discord:
+  description: "Send a message to a Discord channel."
+  fields:
+    message:
+      description: "The message to send."
+      example: "The temperature is 22°C."
