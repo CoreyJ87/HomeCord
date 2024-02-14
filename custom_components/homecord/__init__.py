@@ -17,12 +17,12 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities):
         await session.post(endpoint, json=json_data)
 
 async def get_entities_for_device(hass, device_id):
-    # Function to get entities for a specific device
-    device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
+    # The device_id is passed directly to async_entries_for_device
+    entries = entity_registry.async_entries_for_device(device_id)
     entities = []
 
-    for entry in entity_registry.async_entries_for_device(device_registry, device_id):
+    for entry in entries:
         entities.append({
             "entity_id": entry.entity_id,
             "original_name": entry.original_name or entry.entity_id,
@@ -30,6 +30,7 @@ async def get_entities_for_device(hass, device_id):
             "entity_category": entry.entity_category,
         })
     return entities
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     discord_bot_url = entry.data["discord_bot_url"]
