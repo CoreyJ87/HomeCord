@@ -5,8 +5,9 @@ from homeassistant.core import callback
 from .const import DOMAIN  # Ensure you have a const.py defining DOMAIN and any other constants
 
 class DiscordIntegrationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLLING
+    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     @staticmethod
     @callback
