@@ -1,10 +1,13 @@
 {
-  "domain": "discord_sensor",
-  "name": "Discord Sensor",
-  "documentation": "https://example.com",
+  "domain": "discord_integration",
+  "name": "Discord Integration",
+  "documentation": "https://github.com/Corey87/HomeCord",
   "dependencies": [],
   "codeowners": ["@yourusername"],
   "version": "1.0.0",
-  "requirements": ["aiohttp"], // If you need any Python libraries for API calls etc.
-  "iot_class": "Cloud Polling" // Depending on your bot's communication mechanism
+  "requirements": ["aiohttp==3.8.1", "voluptuous==0.12.2"],
+  "iot_class": "cloud_polling",
+  "config_flow": true,
+  "description": "A custom integration for Home Assistant that sends notifications to Discord based on sensor data and state changes.",
+  "issue_tracker": "https://github.com/yourusername/discord_integration/issues"
 }
