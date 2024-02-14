@@ -27,6 +27,7 @@ async def get_entities_for_device(hass, device_id):
                 "original_name": entry.original_name or entry.entity_id,
                 "platform": entry.platform,
                 "entity_category": entry.entity_category,
+                "state": entry.state if entry.state else "unknown",
             })
     return entities
 
