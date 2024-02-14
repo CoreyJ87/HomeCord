@@ -18,7 +18,7 @@ class DiscordIntegrationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             # Validation or additional steps can be added here
-            return self.async_create_entry(title="Discord Integration", data=user_input)
+            return self.async_create_entry(title="HomeCord Integration", data=user_input)
 
         data_schema = vol.Schema({
             vol.Required("discord_bot_url"): str,

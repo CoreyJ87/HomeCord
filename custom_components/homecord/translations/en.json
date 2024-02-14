@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure HomeCord Integration",
+        "data": {
+          "discord_bot_url": "Discord Bot URL",
+          "device_id": "Device ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the service.",
+      "invalid_auth": "Invalid authentication credentials."
+    },
+    "success": {
+      "title": "Success",
+      "content": "Your HomeCord Integration is now configured."
+    }
+  }
+}

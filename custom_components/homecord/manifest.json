@@ -1,6 +1,6 @@
 {
-  "domain": "discord_integration",
-  "name": "Discord Integration",
+  "domain": "HomeCord",
+  "name": "HomeCord",
   "documentation": "https://github.com/Corey87/HomeCord",
   "dependencies": [],
   "codeowners": ["@yourusername"],
