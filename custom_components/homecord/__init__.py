@@ -18,16 +18,17 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities):
 
 async def get_entities_for_device(hass, device_id):
     entity_registry = er.async_get(hass)
-    # Fetching all entities for a device requires filtering through all entities
     entities = []
+
     for entry in entity_registry.entities.values():
         if entry.device_id == device_id:
+            entity_state = hass.states.get(entry.entity_id)
             entities.append({
                 "entity_id": entry.entity_id,
                 "original_name": entry.original_name or entry.entity_id,
                 "platform": entry.platform,
                 "entity_category": entry.entity_category,
-                "state": entry.state if entry.state else "unknown",
+                "state": entity_state.state if entity_state else "unknown",
             })
     return entities
 
