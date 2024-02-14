@@ -3,7 +3,7 @@
   "name": "HomeCord",
   "documentation": "https://github.com/Corey87/HomeCord",
   "dependencies": [],
-  "codeowners": ["@yourusername"],
+  "codeowners": ["@CoreyJ87"],
   "version": "1.0.0",
   "requirements": [
   "aiohttp==3.9.3",
@@ -12,5 +12,5 @@
   "iot_class": "cloud_polling",
   "config_flow": true,
   "description": "A custom integration for Home Assistant that sends notifications to Discord based on sensor data and state changes.",
-  "issue_tracker": "https://github.com/yourusername/discord_integration/issues"
+  "issue_tracker": "https://github.com/CoreyJ87/HomeCord/issues"
 }
