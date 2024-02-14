@@ -18,18 +18,18 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities):
 
 async def get_entities_for_device(hass, device_id):
     entity_registry = er.async_get(hass)
-    # The device_id is passed directly to async_entries_for_device
-    entries = entity_registry.async_entries_for_device(device_id)
+    # Fetching all entities for a device requires filtering through all entities
     entities = []
-
-    for entry in entries:
-        entities.append({
-            "entity_id": entry.entity_id,
-            "original_name": entry.original_name or entry.entity_id,
-            "platform": entry.platform,
-            "entity_category": entry.entity_category,
-        })
+    for entry in entity_registry.entities.values():
+        if entry.device_id == device_id:
+            entities.append({
+                "entity_id": entry.entity_id,
+                "original_name": entry.original_name or entry.entity_id,
+                "platform": entry.platform,
+                "entity_category": entry.entity_category,
+            })
     return entities
+
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
