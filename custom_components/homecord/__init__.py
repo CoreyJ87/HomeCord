@@ -20,7 +20,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
     # Prepare the data payload
     data_payload = {"device_id": device_id, "entities": entities}
-
+    hass.logger.debug(f"Preparing to send to Discord: {data_payload}")
     # If WebSocket connection is available, use it to send data
     if ws:
         data = {"type": "update", "data": data_payload}
@@ -35,15 +35,18 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
                 entity["snapshot"] = encoded_snapshot
 
         # Send the complete data via WebSocket
+        hass.logger.debug(f"Sending data via WebSocket: {data}")
         await send_data_via_websocket(ws, data)
     else:
         # Fallback to using the HTTP endpoint if WebSocket is not available
         async with aiohttp.ClientSession() as session:
+            hass.logger.debug(f"BAD: WebSocket not available, falling back to HTTP POST: {data_payload}")
             await session.post(discord_bot_url + "/hacs/notify", json=data_payload)
 
 
 async def fetch_camera_snapshot(hass, camera_entity_id):
     snapshot_url = f"{hass.config.api.base_url}/api/camera_proxy/{camera_entity_id}"
+    hass.logger.debug(f"Fetching camera snapshot from {snapshot_url}")
     headers = {
         "Authorization": f"Bearer {hass.config.api.token}",
         "Content-Type": "application/json",
@@ -53,6 +56,7 @@ async def fetch_camera_snapshot(hass, camera_entity_id):
         async with session.get(snapshot_url, headers=headers) as response:
             if response.status == 200:
                 snapshot_data = await response.read()
+                hass.logger.debug(f"Successfully fetched camera snapshot: {camera_entity_id} : {snapshot_data}")
                 return snapshot_data
             else:
                 hass.logger.error(f"Failed to fetch camera snapshot: {response.status}")
