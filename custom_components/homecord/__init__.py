@@ -40,7 +40,9 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
     else:
         # Fallback to using the HTTP endpoint if WebSocket is not available
         async with aiohttp.ClientSession() as session:
-            hass.logger.debug(f"BAD: WebSocket not available, falling back to HTTP POST: {data_payload}")
+            hass.logger.debug(
+                f"BAD: WebSocket not available, falling back to HTTP POST: {data_payload}"
+            )
             await session.post(discord_bot_url + "/hacs/notify", json=data_payload)
 
 
@@ -56,7 +58,9 @@ async def fetch_camera_snapshot(hass, camera_entity_id):
         async with session.get(snapshot_url, headers=headers) as response:
             if response.status == 200:
                 snapshot_data = await response.read()
-                hass.logger.debug(f"Successfully fetched camera snapshot: {camera_entity_id} : {snapshot_data}")
+                hass.logger.debug(
+                    f"Successfully fetched camera snapshot: {camera_entity_id} : {snapshot_data}"
+                )
                 return snapshot_data
             else:
                 hass.logger.error(f"Failed to fetch camera snapshot: {response.status}")
@@ -84,9 +88,7 @@ async def get_entities_for_device(hass, device_id):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     global ws_connection
     discord_bot_url = entry.data["discord_bot_url"]
-    discord_bot_ws_url = entry.data.get(
-        "discord_bot_ws_url"
-    )  # Ensure this is configured
+    discord_bot_ws_url = entry.data["discord_bot_ws_url"]
     device_id_of_interest = entry.data["device_id"]
 
     # Establish WebSocket connection if URL is provided

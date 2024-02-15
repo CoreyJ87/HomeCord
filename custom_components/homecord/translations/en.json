@@ -5,6 +5,7 @@
         "title": "Configure HomeCord Integration",
         "data": {
           "discord_bot_url": "Discord Bot URL",
+          "discord_bot_ws_url": "Discord Bot URL",
           "device_id": "Device ID"
         }
       }

@@ -28,6 +28,7 @@ class DiscordIntegrationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Required("discord_bot_url"): str,
+                vol.Required("discord_bot_ws_url"): str,
                 vol.Required("device_id"): str,
             }
         )
