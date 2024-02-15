@@ -1,0 +1,19 @@
+send_to_discord:
+  name: Send to Discord
+  description: Sends a message or update to Discord via the configured bot.
+  fields:
+    device_id:
+      description: The ID of the device whose entities' states are to be sent.
+      example: "device_1234"
+    entities:
+      description: A list of entity information to send. This should include entity ID, original name, platform, category, and state.
+      example: >
+        [
+          {
+            "entity_id": "sensor.temperature_living_room",
+            "original_name": "Living Room Temperature",
+            "platform": "mqtt",
+            "entity_category": "diagnostic",
+            "state": "21°C"
+          }
+        ]
