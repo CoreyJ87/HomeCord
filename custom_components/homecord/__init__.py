@@ -8,7 +8,7 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.network import get_url
-from homeassistant.helpers.aiohttp_client import async_get_access_token
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 
 from .const import DOMAIN
@@ -55,24 +55,17 @@ async def fetch_camera_snapshot(hass, camera_entity_id):
     snapshot_url = f"{get_url(hass)}/api/camera_proxy/{camera_entity_id}"
     _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
 
-    # Correctly obtain an access token
-    access_token = await async_get_access_token(hass)
+    # Get an authenticated HTTP session
+    session = async_get_clientsession(hass)
 
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(snapshot_url, headers=headers) as response:
-            if response.status == 200:
-                snapshot_data = await response.read()
-                _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}.")
-                return snapshot_data
-            else:
-                _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
-                return None
-
+    async with session.get(snapshot_url) as response:
+        if response.status == 200:
+            snapshot_data = await response.read()
+            _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}.")
+            return snapshot_data
+        else:
+            _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
+            return None
 
 
 async def get_entities_for_device(hass, device_id):
