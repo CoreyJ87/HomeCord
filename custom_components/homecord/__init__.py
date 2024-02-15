@@ -57,8 +57,6 @@ async def fetch_camera_snapshot(hass, camera_entity_id):
 
     # Get an authenticated HTTP session
     session = async_get_clientsession(hass)
-    async with session.get(snapshot_url) as response:
-        _LOGGER.debug(f"Response Status: {response.status}, Response Body: {await response.text()}")
 
     async with session.get(snapshot_url) as response:
         if response.status == 200:
@@ -114,7 +112,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     async def async_send_to_discord_service(call: ServiceCall):
         device_id = call.data.get("device_id")
         entities = await get_entities_for_device(call.hass, device_id)
-        await send_to_discord(call.hass, discord_bot_url, device_id, entities, ws=ws_connection)
+        await send_to_discord(hass, discord_bot_url, device_id, entities, ws=ws_connection)
 
     hass.services.async_register(DOMAIN, "send_to_discord", async_send_to_discord_service)
 
