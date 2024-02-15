@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
@@ -7,7 +8,10 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN  # Ensure DOMAIN is correctly imported from const.py
+from .const import DOMAIN
+
+# Setup logger
+_LOGGER = logging.getLogger(__name__)
 
 # Global variable to maintain WebSocket connection
 ws_connection = None
@@ -20,50 +24,39 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
     # Prepare the data payload
     data_payload = {"device_id": device_id, "entities": entities}
-    hass.logger.debug(f"Preparing to send to Discord: {data_payload}")
-    # If WebSocket connection is available, use it to send data
+    _LOGGER.debug(f"Preparing to send to Discord: {data_payload}")
+
     if ws:
         data = {"type": "update", "data": data_payload}
 
         # For camera entities, add snapshot data
         for entity in entities:
             if "camera" in entity["entity_id"]:
-                # Fetch camera snapshot
                 snapshot_data = await fetch_camera_snapshot(hass, entity["entity_id"])
                 encoded_snapshot = encode_snapshot_data(snapshot_data)
-                # Append the snapshot data to the entity data
                 entity["snapshot"] = encoded_snapshot
 
-        # Send the complete data via WebSocket
-        hass.logger.debug(f"Sending data via WebSocket: {data}")
+        _LOGGER.debug(f"Sending data via WebSocket: {data}")
         await send_data_via_websocket(ws, data)
     else:
-        # Fallback to using the HTTP endpoint if WebSocket is not available
+        _LOGGER.debug("WebSocket not available, falling back to HTTP POST.")
         async with aiohttp.ClientSession() as session:
-            hass.logger.debug(
-                f"BAD: WebSocket not available, falling back to HTTP POST: {data_payload}"
-            )
             await session.post(discord_bot_url + "/hacs/notify", json=data_payload)
 
 
 async def fetch_camera_snapshot(hass, camera_entity_id):
     snapshot_url = f"{hass.config.api.base_url}/api/camera_proxy/{camera_entity_id}"
-    hass.logger.debug(f"Fetching camera snapshot from {snapshot_url}")
-    headers = {
-        "Authorization": f"Bearer {hass.config.api.token}",
-        "Content-Type": "application/json",
-    }
+    _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
+    headers = {"Authorization": f"Bearer {hass.config.api.token}", "Content-Type": "application/json"}
 
     async with aiohttp.ClientSession() as session:
         async with session.get(snapshot_url, headers=headers) as response:
             if response.status == 200:
                 snapshot_data = await response.read()
-                hass.logger.debug(
-                    f"Successfully fetched camera snapshot: {camera_entity_id} : {snapshot_data}"
-                )
+                _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}")
                 return snapshot_data
             else:
-                hass.logger.error(f"Failed to fetch camera snapshot: {response.status}")
+                _LOGGER.error(f"Failed to fetch camera snapshot: {response.status}")
                 return None
 
 
@@ -73,15 +66,13 @@ async def get_entities_for_device(hass, device_id):
     for entry in entity_registry.entities.values():
         if entry.device_id == device_id:
             entity_state = hass.states.get(entry.entity_id)
-            entities.append(
-                {
-                    "entity_id": entry.entity_id,
-                    "original_name": entry.original_name or entry.entity_id,
-                    "platform": entry.platform,
-                    "entity_category": entry.entity_category,
-                    "state": entity_state.state if entity_state else "unknown",
-                }
-            )
+            entities.append({
+                "entity_id": entry.entity_id,
+                "original_name": entry.original_name or entry.entity_id,
+                "platform": entry.platform,
+                "entity_category": entry.entity_category,
+                "state": entity_state.state if entity_state else "unknown",
+            })
     return entities
 
 
@@ -91,52 +82,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     discord_bot_ws_url = entry.data["discord_bot_ws_url"]
     device_id_of_interest = entry.data["device_id"]
 
-    hass.logger.debug("Setting up HomeCord entry")
+    _LOGGER.debug("Setting up HomeCord entry")
 
-    # Establish WebSocket connection if URL is provided
     if discord_bot_ws_url:
         ws_connection = await establish_websocket_connection(hass, discord_bot_ws_url)
-        hass.logger.debug(f"WebSocket connection established to {discord_bot_ws_url}")
+        _LOGGER.debug(f"WebSocket connection established to {discord_bot_ws_url}")
     else:
-        hass.logger.warning("Discord bot WebSocket URL not configured")
+        _LOGGER.warning("Discord bot WebSocket URL not configured")
 
     async def state_change_listener(event):
         entity_id = event.data.get("entity_id")
         entity_entry = er.async_get(hass).async_get(entity_id)
         if entity_entry and entity_entry.device_id == device_id_of_interest:
             entities = await get_entities_for_device(hass, device_id_of_interest)
-            hass.logger.debug(f"Detected state change for device {device_id_of_interest}, sending to Discord")
+            _LOGGER.debug(f"Detected state change for device {device_id_of_interest}, sending to Discord")
             await send_to_discord(hass, discord_bot_url, device_id_of_interest, entities, ws=ws_connection)
 
     hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener)
-    hass.logger.info("HomeCord integration setup completed")
-
-    return True
+    _LOGGER.info("HomeCord integration setup completed")
 
     async def async_send_to_discord_service(call: ServiceCall):
         device_id = call.data.get("device_id")
         entities = await get_entities_for_device(call.hass, device_id)
-        await send_to_discord(
-            call.hass, discord_bot_url, device_id, entities, ws=ws_connection
-        )
+        await send_to_discord(call.hass, discord_bot_url, device_id, entities, ws=ws_connection)
 
-    hass.services.async_register(
-        DOMAIN, "send_to_discord", async_send_to_discord_service
-    )
+    hass.services.async_register(DOMAIN, "send_to_discord", async_send_to_discord_service)
 
     return True
 
 
 async def establish_websocket_connection(hass, discord_bot_ws_url):
-    hass.logger.debug(f"Attempting to establish WebSocket connection to {discord_bot_ws_url}")
+    _LOGGER.debug(f"Attempting to establish WebSocket connection to {discord_bot_ws_url}")
     try:
         session = aiohttp.ClientSession()
         ws = await session.ws_connect(discord_bot_ws_url)
-        hass.logger.debug("WebSocket connection successfully established")
+        _LOGGER.debug("WebSocket connection successfully established")
         return ws
     except Exception as e:
-        hass.logger.error(f"Failed to establish WebSocket connection: {e}")
+        _LOGGER.error(f"Failed to establish WebSocket connection: {e}")
         return None
+
 
 async def send_data_via_websocket(ws, data):
     await ws.send_str(json.dumps(data))
