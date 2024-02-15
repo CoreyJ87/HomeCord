@@ -1,1 +1,1 @@
-DOMAIN = "HomeCord"
+DOMAIN = "homecord"
