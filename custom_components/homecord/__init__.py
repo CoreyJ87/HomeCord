@@ -57,6 +57,8 @@ async def fetch_camera_snapshot(hass, camera_entity_id):
 
     # Get an authenticated HTTP session
     session = async_get_clientsession(hass)
+    async with session.get(snapshot_url) as response:
+        _LOGGER.debug(f"Response Status: {response.status}, Response Body: {await response.text()}")
 
     async with session.get(snapshot_url) as response:
         if response.status == 200:
