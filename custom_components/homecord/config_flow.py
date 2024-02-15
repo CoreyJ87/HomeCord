@@ -30,6 +30,7 @@ class DiscordIntegrationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("discord_bot_url"): str,
                 vol.Required("discord_bot_ws_url"): str,
                 vol.Required("device_id"): str,
+                vol.Required("long_lived_token"): str,
             }
         )
 

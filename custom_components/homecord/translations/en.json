@@ -6,7 +6,8 @@
         "data": {
           "discord_bot_url": "Discord Bot URL",
           "discord_bot_ws_url": "Discord Bot WS URL",
-          "device_id": "Device ID"
+          "device_id": "Device ID",
+          "long_lived_token": "Long Lived Token"
         }
       }
     },

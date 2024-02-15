@@ -10,33 +10,24 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-
 from .const import DOMAIN
 
-# Setup logger
 _LOGGER = logging.getLogger(__name__)
 
-# Global variable to maintain WebSocket connection
 ws_connection = None
-
 
 async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
-
 async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
-    # Prepare the data payload
     data_payload = {"device_id": device_id, "entities": []}
-
     for entity in entities:
-        entity_data = entity.copy()  # Create a copy to avoid modifying the original dict
+        entity_data = entity.copy()
         if "camera" in entity["entity_id"]:
-            snapshot_data = await fetch_camera_snapshot(hass, entity["entity_id"])
-            if snapshot_data is not None:
+            snapshot_data = await fetch_camera_snapshot(hass, entity["entity_id"], hass.data[DOMAIN]["long_lived_token"])
+            if snapshot_data:
                 encoded_snapshot = encode_snapshot_data(snapshot_data)
                 entity_data["snapshot"] = encoded_snapshot
-            else:
-                _LOGGER.debug(f"No snapshot data available for {entity['entity_id']}.")
         data_payload["entities"].append(entity_data)
 
     if ws:
@@ -48,17 +39,17 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
         async with aiohttp.ClientSession() as session:
             await session.post(discord_bot_url + "/hacs/notify", json=data_payload)
 
-
-
-
-async def fetch_camera_snapshot(hass, camera_entity_id):
+async def fetch_camera_snapshot(hass, camera_entity_id, access_token):
     snapshot_url = f"{get_url(hass)}/api/camera_proxy/{camera_entity_id}"
     _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
 
-    # Get an authenticated HTTP session
-    session = async_get_clientsession(hass)
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
 
-    async with session.get(snapshot_url) as response:
+    session = async_get_clientsession(hass)
+    async with session.get(snapshot_url, headers=headers) as response:
         if response.status == 200:
             snapshot_data = await response.read()
             _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}.")
@@ -66,7 +57,6 @@ async def fetch_camera_snapshot(hass, camera_entity_id):
         else:
             _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
             return None
-
 
 async def get_entities_for_device(hass, device_id):
     entity_registry = er.async_get(hass)
@@ -83,17 +73,20 @@ async def get_entities_for_device(hass, device_id):
             })
     return entities
 
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     global ws_connection
     discord_bot_url = entry.data["discord_bot_url"]
     discord_bot_ws_url = entry.data["discord_bot_ws_url"]
     device_id_of_interest = entry.data["device_id"]
+    access_token = entry.data.get("long_lived_token")
+
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["long_lived_token"] = access_token
 
     _LOGGER.debug("Setting up HomeCord entry")
 
     if discord_bot_ws_url:
-        ws_connection = await establish_websocket_connection(hass, discord_bot_ws_url)
+        ws_connection = await establish_websocket_connection(discord_bot_ws_url)
         _LOGGER.debug(f"WebSocket connection established to {discord_bot_ws_url}")
     else:
         _LOGGER.warning("Discord bot WebSocket URL not configured")
@@ -111,15 +104,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     async def async_send_to_discord_service(call: ServiceCall):
         device_id = call.data.get("device_id")
-        entities = await get_entities_for_device(call.hass, device_id)
+        entities = await get_entities_for_device(hass, device_id)
         await send_to_discord(hass, discord_bot_url, device_id, entities, ws=ws_connection)
 
     hass.services.async_register(DOMAIN, "send_to_discord", async_send_to_discord_service)
 
     return True
 
-
-async def establish_websocket_connection(hass, discord_bot_ws_url):
+async def establish_websocket_connection(discord_bot_ws_url):
     _LOGGER.debug(f"Attempting to establish WebSocket connection to {discord_bot_ws_url}")
     try:
         session = aiohttp.ClientSession()
@@ -130,11 +122,8 @@ async def establish_websocket_connection(hass, discord_bot_ws_url):
         _LOGGER.error(f"Failed to establish WebSocket connection: {e}")
         return None
 
-
 async def send_data_via_websocket(ws, data):
     await ws.send_str(json.dumps(data))
 
-
 def encode_snapshot_data(binary_data):
-    """Encode binary snapshot data to a Base64 string."""
     return base64.b64encode(binary_data).decode("utf-8")
