@@ -7,6 +7,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.network import get_url
+
 
 from .const import DOMAIN
 
@@ -45,19 +47,30 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
 
 
 async def fetch_camera_snapshot(hass, camera_entity_id):
-    snapshot_url = f"{hass.config.api.base_url}/api/camera_proxy/{camera_entity_id}"
-    _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
-    headers = {"Authorization": f"Bearer {hass.config.api.token}", "Content-Type": "application/json"}
+    try:
+        snapshot_url = f"{get_url(hass)}/api/camera_proxy/{camera_entity_id}"
+        _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(snapshot_url, headers=headers) as response:
-            if response.status == 200:
-                snapshot_data = await response.read()
-                _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}")
-                return snapshot_data
-            else:
-                _LOGGER.error(f"Failed to fetch camera snapshot: {response.status}")
-                return None
+        # Retrieve a valid access token
+        access_token = await hass.auth.async_create_access_token(hass.user)
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(snapshot_url, headers=headers) as response:
+                if response.status == 200:
+                    snapshot_data = await response.read()
+                    _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}.")
+                    return snapshot_data
+                else:
+                    _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
+                    return None
+    except Exception as e:
+        _LOGGER.error(f"Error fetching camera snapshot: {e}")
+        return None
 
 
 async def get_entities_for_device(hass, device_id):
