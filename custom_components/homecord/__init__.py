@@ -91,20 +91,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     discord_bot_ws_url = entry.data["discord_bot_ws_url"]
     device_id_of_interest = entry.data["device_id"]
 
+    hass.logger.debug("Setting up HomeCord entry")
+
     # Establish WebSocket connection if URL is provided
     if discord_bot_ws_url:
-        ws_connection = await establish_websocket_connection(discord_bot_ws_url)
+        ws_connection = await establish_websocket_connection(hass, discord_bot_ws_url)
+        hass.logger.debug(f"WebSocket connection established to {discord_bot_ws_url}")
+    else:
+        hass.logger.warning("Discord bot WebSocket URL not configured")
 
     async def state_change_listener(event):
         entity_id = event.data.get("entity_id")
         entity_entry = er.async_get(hass).async_get(entity_id)
         if entity_entry and entity_entry.device_id == device_id_of_interest:
             entities = await get_entities_for_device(hass, device_id_of_interest)
-            await send_to_discord(
-                hass, discord_bot_url, device_id_of_interest, entities, ws=ws_connection
-            )
+            hass.logger.debug(f"Detected state change for device {device_id_of_interest}, sending to Discord")
+            await send_to_discord(hass, discord_bot_url, device_id_of_interest, entities, ws=ws_connection)
 
     hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener)
+    hass.logger.info("HomeCord integration setup completed")
+
+    return True
 
     async def async_send_to_discord_service(call: ServiceCall):
         device_id = call.data.get("device_id")
@@ -120,11 +127,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def establish_websocket_connection(discord_bot_ws_url):
-    session = aiohttp.ClientSession()
-    ws = await session.ws_connect(discord_bot_ws_url)
-    return ws
-
+async def establish_websocket_connection(hass, discord_bot_ws_url):
+    hass.logger.debug(f"Attempting to establish WebSocket connection to {discord_bot_ws_url}")
+    try:
+        session = aiohttp.ClientSession()
+        ws = await session.ws_connect(discord_bot_ws_url)
+        hass.logger.debug("WebSocket connection successfully established")
+        return ws
+    except Exception as e:
+        hass.logger.error(f"Failed to establish WebSocket connection: {e}")
+        return None
 
 async def send_data_via_websocket(ws, data):
     await ws.send_str(json.dumps(data))
