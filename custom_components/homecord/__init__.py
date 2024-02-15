@@ -8,6 +8,7 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.network import get_url
+from homeassistant.helpers.aiohttp_client import async_get_access_token
 
 
 from .const import DOMAIN
@@ -25,19 +26,21 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
     # Prepare the data payload
-    data_payload = {"device_id": device_id, "entities": entities}
-    _LOGGER.debug(f"Preparing to send to Discord: {data_payload}")
+    data_payload = {"device_id": device_id, "entities": []}
+
+    for entity in entities:
+        entity_data = entity.copy()  # Create a copy to avoid modifying the original dict
+        if "camera" in entity["entity_id"]:
+            snapshot_data = await fetch_camera_snapshot(hass, entity["entity_id"])
+            if snapshot_data is not None:
+                encoded_snapshot = encode_snapshot_data(snapshot_data)
+                entity_data["snapshot"] = encoded_snapshot
+            else:
+                _LOGGER.debug(f"No snapshot data available for {entity['entity_id']}.")
+        data_payload["entities"].append(entity_data)
 
     if ws:
         data = {"type": "update", "data": data_payload}
-
-        # For camera entities, add snapshot data
-        for entity in entities:
-            if "camera" in entity["entity_id"]:
-                snapshot_data = await fetch_camera_snapshot(hass, entity["entity_id"])
-                encoded_snapshot = encode_snapshot_data(snapshot_data)
-                entity["snapshot"] = encoded_snapshot
-
         _LOGGER.debug(f"Sending data via WebSocket: {data}")
         await send_data_via_websocket(ws, data)
     else:
@@ -46,31 +49,30 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
             await session.post(discord_bot_url + "/hacs/notify", json=data_payload)
 
 
+
+
 async def fetch_camera_snapshot(hass, camera_entity_id):
-    try:
-        snapshot_url = f"{get_url(hass)}/api/camera_proxy/{camera_entity_id}"
-        _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
+    snapshot_url = f"{get_url(hass)}/api/camera_proxy/{camera_entity_id}"
+    _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
 
-        # Retrieve a valid access token
-        access_token = await hass.auth.async_create_access_token(hass.user)
+    # Correctly obtain an access token
+    access_token = await async_get_access_token(hass)
 
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(snapshot_url, headers=headers) as response:
-                if response.status == 200:
-                    snapshot_data = await response.read()
-                    _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}.")
-                    return snapshot_data
-                else:
-                    _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
-                    return None
-    except Exception as e:
-        _LOGGER.error(f"Error fetching camera snapshot: {e}")
-        return None
+    async with aiohttp.ClientSession() as session:
+        async with session.get(snapshot_url, headers=headers) as response:
+            if response.status == 200:
+                snapshot_data = await response.read()
+                _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}.")
+                return snapshot_data
+            else:
+                _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
+                return None
+
 
 
 async def get_entities_for_device(hass, device_id):
