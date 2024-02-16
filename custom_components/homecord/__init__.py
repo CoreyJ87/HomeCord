@@ -58,20 +58,23 @@ async def fetch_camera_snapshot(hass, camera_entity_id, access_token):
             _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
             return None
 
-async def get_entities_for_device(hass, device_id):
+async def get_entities_for_device(hass, device_id, entity_names=None):
     entity_registry = er.async_get(hass)
     entities = []
     for entry in entity_registry.entities.values():
         if entry.device_id == device_id:
-            entity_state = hass.states.get(entry.entity_id)
-            entities.append({
-                "entity_id": entry.entity_id,
-                "original_name": entry.original_name or entry.entity_id,
-                "platform": entry.platform,
-                "entity_category": entry.entity_category,
-                "state": entity_state.state if entity_state else "unknown",
-            })
+            # Check if entity_names is provided and if the current entity's name or ID is in the list
+            if entity_names is None or entry.original_name in entity_names or entry.entity_id in entity_names:
+                entity_state = hass.states.get(entry.entity_id)
+                entities.append({
+                    "entity_id": entry.entity_id,
+                    "original_name": entry.original_name or entry.entity_id,
+                    "platform": entry.platform,
+                    "entity_category": entry.entity_category,
+                    "state": entity_state.state if entity_state else "unknown",
+                })
     return entities
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     global ws_connection
@@ -79,6 +82,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     discord_bot_ws_url = entry.data["discord_bot_ws_url"]
     device_id_of_interest = entry.data["device_id"]
     access_token = entry.data.get("long_lived_token")
+
+    entity_names = [name.strip() for name in entry.data.get("entity_names", "").split(',')] if entry.data.get(
+        "entity_names") else None
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["long_lived_token"] = access_token
@@ -95,7 +101,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         entity_id = event.data.get("entity_id")
         entity_entry = er.async_get(hass).async_get(entity_id)
         if entity_entry and entity_entry.device_id == device_id_of_interest:
-            entities = await get_entities_for_device(hass, device_id_of_interest)
+            # Pass the list of entity names to get_entities_for_device, if provided
+            entities = await get_entities_for_device(hass, device_id_of_interest, entity_names)
             _LOGGER.debug(f"Detected state change for device {device_id_of_interest}, sending to Discord")
             await send_to_discord(hass, discord_bot_url, device_id_of_interest, entities, ws=ws_connection)
 
