@@ -35,7 +35,7 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
     if ws:
         data = {"type": "update", "data": data_payload}
         _LOGGER.debug(f"Sending data via WebSocket: {data}")
-        await send_data_via_websocket(ws, data)
+        await send_data_via_websocket(ws, data, discord_bot_url)
     else:
         _LOGGER.debug("WebSocket not available, falling back to HTTP POST.")
         async with aiohttp.ClientSession() as session:
@@ -134,6 +134,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     return True
 
+
+async def send_data_via_websocket(ws, data, discord_bot_ws_url):
+    global ws_connection  # Assuming ws_connection is the global variable holding the WebSocket connection
+    if ws.closed:
+        _LOGGER.info("WebSocket connection is closed. Attempting to reconnect...")
+        ws_connection = await establish_websocket_connection(discord_bot_ws_url)
+        if ws_connection is None:
+            _LOGGER.error("Reconnection failed. Data not sent.")
+            return
+        else:
+            ws = ws_connection  # Update the local ws variable to the newly established connection
+
+    try:
+        await ws.send_str(json.dumps(data))
+    except ConnectionResetError as e:
+        _LOGGER.error(f"Failed to send data via WebSocket: {e}")
+    except Exception as e:
+        _LOGGER.error(f"Unexpected error when sending data via WebSocket: {e}")
+
+
 async def establish_websocket_connection(discord_bot_ws_url):
     _LOGGER.debug(f"Attempting to establish WebSocket connection to {discord_bot_ws_url}")
     try:
@@ -145,8 +165,6 @@ async def establish_websocket_connection(discord_bot_ws_url):
         _LOGGER.error(f"Failed to establish WebSocket connection: {e}")
         return None
 
-async def send_data_via_websocket(ws, data):
-    await ws.send_str(json.dumps(data))
 
 def encode_snapshot_data(binary_data):
     return base64.b64encode(binary_data).decode("utf-8")
