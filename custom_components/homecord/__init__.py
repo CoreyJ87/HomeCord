@@ -104,8 +104,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.debug("No camera entities found for periodic update")
 
     # Schedule the periodic update
-    async_track_time_interval(hass, lambda now: update_cameras_periodically(), timedelta(minutes=1))
-
+    async_track_time_interval(hass, lambda now: hass.async_create_task(update_cameras_periodically()),
+                              timedelta(minutes=1))
 
     if discord_bot_ws_url:
         ws_connection = await establish_websocket_connection(discord_bot_ws_url)
