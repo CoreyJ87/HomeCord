@@ -9,6 +9,8 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from datetime import timedelta
+from homeassistant.helpers.event import async_track_time_interval
 
 from .const import DOMAIN
 
@@ -90,6 +92,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN]["long_lived_token"] = access_token
 
     _LOGGER.debug("Setting up HomeCord entry")
+
+    async def update_cameras_periodically():
+        _LOGGER.debug("Periodic camera update triggered")
+        # Reuse logic similar to state_change_listener
+        entities = await get_entities_for_device(hass, device_id_of_interest, entity_names)
+        camera_entities = [entity for entity in entities if "camera" in entity["entity_id"]]
+        if camera_entities:
+            await send_to_discord(hass, discord_bot_url, device_id_of_interest, camera_entities, ws=ws_connection)
+        else:
+            _LOGGER.debug("No camera entities found for periodic update")
+
+    # Schedule the periodic update
+    async_track_time_interval(hass, lambda now: update_cameras_periodically(), timedelta(minutes=1))
+
 
     if discord_bot_ws_url:
         ws_connection = await establish_websocket_connection(discord_bot_ws_url)
