@@ -41,23 +41,25 @@ async def send_to_discord(hass, discord_bot_url, device_id, entities, ws=None):
         async with aiohttp.ClientSession() as session:
             await session.post(discord_bot_url + "/hacs/notify", json=data_payload)
 
-async def fetch_camera_snapshot(hass, camera_entity_id, access_token):
-    snapshot_url = f"{get_url(hass)}/api/camera_proxy/{camera_entity_id}"
-    _LOGGER.debug(f"Fetching camera snapshot from {snapshot_url}")
 
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
+async def fetch_camera_snapshot(hass, entity_id, access_token):
+    if "camera" in entity_id:
+        # Existing logic for fetching camera snapshots
+        snapshot_url = f"{get_url(hass)}/api/camera_proxy/{entity_id}"
+    elif "image" in entity_id:
+        # Adjust this URL or logic based on how image data is fetched
+        snapshot_url = f"{get_url(hass)}/api/image_proxy/{entity_id}"
 
+    _LOGGER.debug(f"Fetching entity snapshot from {snapshot_url}")
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json", }
     session = async_get_clientsession(hass)
     async with session.get(snapshot_url, headers=headers) as response:
         if response.status == 200:
             snapshot_data = await response.read()
-            _LOGGER.debug(f"Successfully fetched camera snapshot for {camera_entity_id}.")
+            _LOGGER.debug(f"Successfully fetched snapshot for {entity_id}.")
             return snapshot_data
         else:
-            _LOGGER.error(f"Failed to fetch camera snapshot: HTTP {response.status}")
+            _LOGGER.error(f"Failed to fetch snapshot: HTTP {response.status}")
             return None
 
 async def get_entities_for_device(hass, device_id, entity_names=None):
@@ -93,18 +95,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     _LOGGER.debug("Setting up HomeCord entry")
 
-    async def update_cameras_periodically():
-        _LOGGER.debug("Periodic camera update triggered")
-        # Reuse logic similar to state_change_listener
+    async def update_entities_periodically():
+        _LOGGER.debug("Periodic entity update triggered")
         entities = await get_entities_for_device(hass, device_id_of_interest, entity_names)
-        camera_entities = [entity for entity in entities if "camera" in entity["entity_id"]]
-        if camera_entities:
-            await send_to_discord(hass, discord_bot_url, device_id_of_interest, camera_entities, ws=ws_connection)
+        relevant_entities = [entity for entity in entities if
+                             "camera" in entity["entity_id"] or "image" in entity["entity_id"]]
+        if relevant_entities:
+            await send_to_discord(hass, discord_bot_url, device_id_of_interest, relevant_entities, ws=ws_connection)
         else:
-            _LOGGER.debug("No camera entities found for periodic update")
+            _LOGGER.debug("No relevant entities (camera/image) found for periodic update")
 
     # Schedule the periodic update
-    async_track_time_interval(hass, lambda now: hass.async_create_task(update_cameras_periodically()),
+    async_track_time_interval(hass, lambda now: hass.async_create_task(update_entities_periodically()),
                               timedelta(minutes=1))
 
     if discord_bot_ws_url:
