@@ -46,12 +46,11 @@ class EntityManager:
         if "camera" in entity_id:
             snapshot_url = f"{get_url(self.hass)}/api/camera_proxy/{entity_id}"
         elif "image" in entity_id:
-            # This assumes image entities are fetched similarly, adjust as needed
             snapshot_url = f"{get_url(self.hass)}/api/image_proxy/{entity_id}"
 
         _LOGGER.debug(f"Fetching snapshot for {entity_id} from {snapshot_url}")
-        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json",}
-        session = await async_get_clientsession(self.hass)
+        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
+        session = async_get_clientsession(self.hass)
         async with session.get(snapshot_url, headers=headers) as response:
             if response.status == 200:
                 _LOGGER.debug(f"Successfully fetched snapshot for {entity_id}.")
