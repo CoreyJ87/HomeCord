@@ -4,6 +4,7 @@ from .communicator import Communicator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import entity_registry as er
 from .const import (  # Ensure you have a const.py defining DOMAIN and any other constants
     DOMAIN,
 )
@@ -46,10 +47,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # State change listener for real-time updates
     async def state_change_listener(event):
-        """Listens for state changes and sends updates to Discord."""
-        _LOGGER.debug("State change detected, preparing to update entities.")
-        entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
-        await communicator.send_to_discord(device_id_of_interest, entities)
+        """Listens for state changes and sends updates to Discord for the specific updated entity only."""
+        entity_id = event.data.get("entity_id")
+        entity_entry = er.async_get(hass).async_get(entity_id)
+
+        if entity_entry and entity_entry.device_id == device_id_of_interest:
+            _LOGGER.debug(f"State change detected for {entity_id}, preparing to update entity.")
+
+            # Fetch the state of the updated entity
+            entity_state = hass.states.get(entity_id)
+            if entity_state:
+                entity_data = {
+                    "entity_id": entity_state.entity_id,
+                    "state": entity_state.state,
+                    "attributes": entity_state.attributes,
+                    "last_changed": entity_state.last_changed.isoformat(),
+                }
+
+                # Determine if this entity is a camera or image entity to fetch snapshot
+                if "camera" in entity_id or "image" in entity_id:
+                    snapshot_data = await entity_manager.fetch_entity_snapshot(entity_id)
+                    if snapshot_data:
+                        entity_data["snapshot"] = entity_manager.encode_snapshot_data(snapshot_data)
+
+                # Now send only the updated entity's data
+                await communicator.send_to_discord(device_id_of_interest,
+                                                   [entity_data])  # Note we wrap entity_data in a list
 
     hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener)
 
