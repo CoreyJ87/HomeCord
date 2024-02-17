@@ -41,16 +41,20 @@ class EntityManager:
         return entities
 
     async def fetch_entity_snapshot(self, entity_id: str):
-        """Fetches snapshot data for an entity based on its type."""
-        snapshot_url = ""
-        if "camera" in entity_id:
+        """Fetches snapshot data for an entity based on its type, directing to the correct proxy."""
+        # Determine the appropriate URL based on the entity ID prefix
+        if entity_id.startswith("camera."):
             snapshot_url = f"{get_url(self.hass)}/api/camera_proxy/{entity_id}"
-        elif "image" in entity_id:
+        elif entity_id.startswith("image."):
             snapshot_url = f"{get_url(self.hass)}/api/image_proxy/{entity_id}"
+        else:
+            _LOGGER.error(f"Entity {entity_id} does not match expected 'camera.' or 'image.' prefixes.")
+            return None
 
         _LOGGER.debug(f"Fetching snapshot for {entity_id} from {snapshot_url}")
         headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
         session = async_get_clientsession(self.hass)
+
         async with session.get(snapshot_url, headers=headers) as response:
             if response.status == 200:
                 _LOGGER.debug(f"Successfully fetched snapshot for {entity_id}.")

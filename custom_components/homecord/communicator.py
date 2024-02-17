@@ -15,7 +15,7 @@ class Communicator:
 
     async def send_to_discord(self, device_id: str, entities: list):
         """Send entity updates to Discord via HTTP POST or WebSocket."""
-        data_payload = {"device_id": device_id, "entities": entities}
+        data_payload = {"type": "update", "device_id": device_id, "entities": entities}
 
         if self.ws_connection and not self.ws_connection.closed:
             await self.send_data_via_websocket(json.dumps(data_payload))
