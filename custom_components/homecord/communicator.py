@@ -20,7 +20,7 @@ class Communicator:
         if self.ws_connection and not self.ws_connection.closed:
             await self.send_data_via_websocket(json.dumps(data_payload))
         else:
-            await self.send_data_via_http(data_payload)
+            await self.establish_websocket_connection()
 
     async def send_data_via_http(self, data_payload: dict):
         """Send data to Discord via HTTP POST."""
