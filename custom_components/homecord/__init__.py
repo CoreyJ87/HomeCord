@@ -34,6 +34,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "entity_manager": entity_manager,
         "communicator": communicator,
     }
+    # Schedule periodic updates
+
 
     async def update_entities_periodically(now):
         """Periodically fetches entities and sends updates to Discord."""
@@ -42,10 +44,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         if entities:
             await communicator.send_to_discord(device_id_of_interest, entities)
 
-    # Schedule periodic updates
-    async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=1))
-
-    # State change listener for real-time updates
     async def state_change_listener(event):
         """Listens for state changes and sends updates to Discord for the specific updated entity only."""
         entity_id = event.data.get("entity_id")
@@ -75,6 +73,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                                                    [entity_data])  # Note we wrap entity_data in a list
 
     hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener)
-
+    async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=1))
     _LOGGER.info("HomeCord Integration: Setup completed successfully.")
     return True
