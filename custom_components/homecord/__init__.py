@@ -47,8 +47,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.debug("Periodic update started at %s", now)
         try:
             entities = await entity_manager.get_entities_for_device(device_id_of_interest, [])
-            _LOGGER.debug(entities)
-            _LOGGER.debug("get_entities_for_device call succeeded.")
         except Exception as e:
             _LOGGER.error("Error during get_entities_for_device: %s", e)
         try:
