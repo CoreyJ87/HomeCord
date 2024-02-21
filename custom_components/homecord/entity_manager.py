@@ -25,17 +25,20 @@ class EntityManager:
             if entry.device_id == device_id:
                 if not entity_names or entry.original_name in entity_names or entry.entity_id in entity_names:
                     entity_state = self.hass.states.get(entry.entity_id)
+                    # Convert entity_category to a string representation or None if it's not set
+                    entity_category = entry.entity_category.value if entry.entity_category else None
                     entity_data = {
                         "entity_id": entry.entity_id,
                         "original_name": entry.original_name or entry.entity_id,
                         "platform": entry.platform,
-                        "entity_category": entry.entity_category,
+                        "entity_category": entity_category,
                         "state": entity_state.state if entity_state else "unknown",
                     }
                     # Fetch snapshot data for camera and image entities
                     if "camera" in entry.entity_id or "image" in entry.entity_id:
                         snapshot_data = await self.fetch_entity_snapshot(entry.entity_id)
                         if snapshot_data:
+                            # Ensure snapshot_data is in a format that can be JSON-serialized
                             entity_data["snapshot"] = self.encode_snapshot_data(snapshot_data)
                     entities.append(entity_data)
         return entities

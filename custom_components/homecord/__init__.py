@@ -46,7 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     async def update_entities_periodically(now):
         _LOGGER.debug("Periodic update started at %s", now)
         try:
-            entities = await entity_manager.get_entities_for_device(device_id_of_interest, [])
+            entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
         except Exception as e:
             _LOGGER.error("Error during get_entities_for_device: %s", e)
         try:
@@ -83,9 +83,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 await communicator.send_to_discord(device_id_of_interest,
                                                    [entity_data])  # Note we wrap entity_data in a list
 
+    def async_close_session(event):
+        """Close the aiohttp session on Home Assistant shutdown."""
+        hass.async_create_task(communicator.async_close_session())
+        async_remove_entry(hass, entry)
+
+    hass.bus.async_listen_once("homeassistant_stop", async_close_session)
+
     listeners.append(hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener))
     _LOGGER.debug("Scheduling periodic updates.")
     async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=1))
+
     _LOGGER.debug("Periodic updates scheduled.")
 
     _LOGGER.info("HomeCord Integration: Setup completed successfully.")

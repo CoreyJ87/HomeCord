@@ -1,8 +1,7 @@
 import json
 import logging
-import aiohttp
 from homeassistant.core import HomeAssistant
-
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -12,6 +11,7 @@ class Communicator:
         self.discord_bot_url = discord_bot_url
         self.discord_bot_ws_url = discord_bot_ws_url
         self.ws_connection = None
+        self.session = async_get_clientsession(hass)
 
     async def send_to_discord(self, device_id: str, entities: list):
         """Send entity updates to Discord via HTTP POST or WebSocket."""
@@ -21,15 +21,6 @@ class Communicator:
             await self.send_data_via_websocket(json.dumps(data_payload))
         else:
             await self.establish_websocket_connection()
-
-    async def send_data_via_http(self, data_payload: dict):
-        """Send data to Discord via HTTP POST."""
-        async with aiohttp.ClientSession() as session:
-            try:
-                await session.post(self.discord_bot_url + "/hacs/notify", json=data_payload)
-                _LOGGER.debug("Data sent to Discord via HTTP POST.")
-            except Exception as e:
-                _LOGGER.error(f"Failed to send data to Discord via HTTP POST: {e}")
 
     async def send_data_via_websocket(self, data: str):
         """Send data to Discord via WebSocket."""
@@ -49,8 +40,7 @@ class Communicator:
             await self.ws_connection.close()
 
         try:
-            session = aiohttp.ClientSession()
-            self.ws_connection = await session.ws_connect(self.discord_bot_ws_url)
+            self.ws_connection = await self.session.ws_connect(self.discord_bot_ws_url)
             _LOGGER.debug("WebSocket connection successfully established.")
         except Exception as e:
             _LOGGER.error(f"Failed to establish WebSocket connection: {e}")
