@@ -145,3 +145,5 @@ cython_debug/
 # Including configuration or sensitive information in version control can pose security risks and should be avoided.
 config.yaml
 secrets.yaml
+
+errors
