@@ -39,17 +39,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.debug("Periodic update started at %s", now)
         try:
             entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
-        except Exception as e:
-            _LOGGER.error("Error during get_entities_for_device: %s", e)
-        try:
-            await communicator.send_to_discord(device_id_of_interest, entities)
-        except Exception as e:
-            _LOGGER.error("Error during send_to_discord: %s", e)
+            # Fetch the state of 'current_stage' sensor directly from the Home Assistant state machine
+            current_stage_state = hass.states.get('sensor.p1s_01p00a3c0300850_current_stage')
 
+            if current_stage_state and current_stage_state.state == "printing":
+                await communicator.send_to_discord(device_id_of_interest, entities)
+            else:
+                _LOGGER.info("Skipped sending update to Discord. 'current_stage' not in 'printing' state.")
+        except Exception as e:
+            _LOGGER.error("Error during get_entities_for_device or send_to_discord: %s", e)
 
     async def state_change_listener(event):
-        """Listens for state changes and sends updates to Discord for the specific updated entity only."""
+        """Listens for state changes and sends updates to Discord selectively based on the entity and state."""
         entity_id = event.data.get("entity_id")
+        current_stage_entity_id = 'sensor.p1s_01p00a3c0300850_current_stage'
+        current_stage_state = hass.states.get(current_stage_entity_id).state
+
+        # Always send updates for the current stage entity itself
+        if entity_id == current_stage_entity_id:
+            await send_update_for_entity(entity_id)
+        # For other entities, send updates only if the current stage is "printing"
+        elif current_stage_state == "printing":
+            await send_update_for_entity(entity_id)
+
+    async def send_update_for_entity(entity_id):
+        """Sends update for a given entity ID to Discord."""
         entity_entry = er.async_get(hass).async_get(entity_id)
 
         if entity_entry and entity_entry.device_id == device_id_of_interest:
@@ -72,8 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                         entity_data["snapshot"] = entity_manager.encode_snapshot_data(snapshot_data)
 
                 # Now send only the updated entity's data
-                await communicator.send_to_discord(device_id_of_interest,
-                                                   [entity_data])  # Note we wrap entity_data in a list
+                await communicator.send_to_discord(device_id_of_interest, [entity_data])  # Wrap entity_data in a list
 
     async def shutdown():
         if "communicator" in hass.data[DOMAIN]:
