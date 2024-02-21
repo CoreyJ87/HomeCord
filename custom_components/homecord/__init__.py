@@ -75,22 +75,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 await communicator.send_to_discord(device_id_of_interest,
                                                    [entity_data])  # Note we wrap entity_data in a list
 
-    # In your setup file
-    async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-        """Clean up resources on entry unload."""
+    async def shutdown(event):
         if "communicator" in hass.data[DOMAIN]:
             await hass.data[DOMAIN]["communicator"].close_websocket_connection()
 
-        # Remove listeners
+            while listeners:
+                deregister = listeners.pop()
+                deregister()
+
+            _LOGGER.info("HomeCord Integration: Resources cleaned up successfully.")
+
+    async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+        if "communicator" in hass.data[DOMAIN]:
+            await hass.data[DOMAIN]["communicator"].close_websocket_connection()
+
+
         while listeners:
             deregister = listeners.pop()
-            deregister()  # Call the deregister function for each listener
+            deregister()
 
         _LOGGER.info("HomeCord Integration: Resources cleaned up successfully.")
         return True
 
     entry.async_on_unload(entry.add_update_listener(async_unload_entry))
-    hass.bus.async_listen_once("homeassistant_stop", async_unload_entry)
+    hass.bus.async_listen_once("homeassistant_stop", shutdown)
     listeners.append(hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener))
 
     #_LOGGER.debug("Scheduling periodic updates.")
