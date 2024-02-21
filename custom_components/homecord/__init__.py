@@ -34,14 +34,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "entity_manager": entity_manager,
         "communicator": communicator,
     }
-    # Schedule periodic updates
-
-    async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry):
-        """Handle removal of an entry."""
-        # Deregister all listeners
-        while listeners:
-            deregister = listeners.pop()
-            deregister()  # Call the deregister function for each listener
 
     async def update_entities_periodically(now):
         _LOGGER.debug("Periodic update started at %s", now)
@@ -83,18 +75,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 await communicator.send_to_discord(device_id_of_interest,
                                                    [entity_data])  # Note we wrap entity_data in a list
 
-    def async_close_session(event):
-        """Close the aiohttp session on Home Assistant shutdown."""
-        hass.async_create_task(communicator.async_close_session())
-        async_remove_entry(hass, entry)
+    # In your setup file
+    async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+        """Clean up resources on entry unload."""
+        if "communicator" in hass.data[DOMAIN]:
+            await hass.data[DOMAIN]["communicator"].close_websocket_connection()
 
-    hass.bus.async_listen_once("homeassistant_stop", async_close_session)
+        # Remove listeners
+        while listeners:
+            deregister = listeners.pop()
+            deregister()  # Call the deregister function for each listener
 
+        _LOGGER.info("HomeCord Integration: Resources cleaned up successfully.")
+        return True
+
+    entry.async_on_unload(entry.add_update_listener(async_unload_entry))
+    hass.bus.async_listen_once("homeassistant_stop", async_unload_entry)
     listeners.append(hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener))
-    _LOGGER.debug("Scheduling periodic updates.")
-    async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=1))
 
-    _LOGGER.debug("Periodic updates scheduled.")
+    #_LOGGER.debug("Scheduling periodic updates.")
+    #async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=1))
+    #_LOGGER.debug("Periodic updates scheduled.")
 
     _LOGGER.info("HomeCord Integration: Setup completed successfully.")
     return True

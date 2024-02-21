@@ -45,3 +45,10 @@ class Communicator:
         except Exception as e:
             _LOGGER.error(f"Failed to establish WebSocket connection: {e}")
             self.ws_connection = None
+
+    async def close_websocket_connection(self):
+        """Close the WebSocket connection if it's open."""
+        if self.ws_connection:
+            await self.ws_connection.close()
+            self.ws_connection = None
+            _LOGGER.debug("WebSocket connection closed.")
