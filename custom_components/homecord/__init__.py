@@ -11,7 +11,7 @@ from .const import (  # Ensure you have a const.py defining DOMAIN and any other
 from datetime import timedelta
 from homeassistant.helpers.event import async_track_time_interval
 import logging
-
+listeners = []
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
@@ -36,13 +36,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     }
     # Schedule periodic updates
 
+    async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry):
+        """Handle removal of an entry."""
+        # Deregister all listeners
+        while listeners:
+            deregister = listeners.pop()
+            deregister()  # Call the deregister function for each listener
 
     async def update_entities_periodically(now):
-        """Periodically fetches entities and sends updates to Discord."""
-        _LOGGER.debug("Periodic update of entities triggered.")
-        entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
-        if entities:
-            await communicator.send_to_discord(device_id_of_interest, entities)
+        _LOGGER.debug("Periodic update fired at %s", now)
+
+       # entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
+        #if entities:
+         #   await communicator.send_to_discord(device_id_of_interest, entities)
 
     async def state_change_listener(event):
         """Listens for state changes and sends updates to Discord for the specific updated entity only."""
@@ -72,7 +78,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 await communicator.send_to_discord(device_id_of_interest,
                                                    [entity_data])  # Note we wrap entity_data in a list
 
-    hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener)
+    listeners.append(hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener))
+    _LOGGER.debug("Scheduling periodic updates.")
     async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=1))
+    _LOGGER.debug("Periodic updates scheduled.")
+
     _LOGGER.info("HomeCord Integration: Setup completed successfully.")
     return True
