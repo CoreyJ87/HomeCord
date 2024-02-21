@@ -75,7 +75,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 await communicator.send_to_discord(device_id_of_interest,
                                                    [entity_data])  # Note we wrap entity_data in a list
 
-    async def shutdown(event):
+    async def shutdown():
         if "communicator" in hass.data[DOMAIN]:
             await hass.data[DOMAIN]["communicator"].close_websocket_connection()
 
