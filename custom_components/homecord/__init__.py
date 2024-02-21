@@ -50,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         except Exception as e:
             _LOGGER.error("Error during get_entities_for_device: %s", e)
         try:
-            await communicator.send_to_discord(device_id_of_interest, [entities])
+            await communicator.send_to_discord(device_id_of_interest, entities)
         except Exception as e:
             _LOGGER.error("Error during send_to_discord: %s", e)
 
