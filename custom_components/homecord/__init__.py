@@ -44,21 +44,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             deregister()  # Call the deregister function for each listener
 
     async def update_entities_periodically(now):
-        _LOGGER.debug("Periodic update of entities triggered at %s", now)
-
+        _LOGGER.debug("Periodic update started at %s", now)
         try:
-            _LOGGER.debug("Fetching entities for device.")
-            entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
-            _LOGGER.debug("Fetched %d entities.", len(entities))
-
-            if entities:
-                _LOGGER.debug("Sending entities to Discord.")
-                await communicator.send_to_discord(device_id_of_interest, entities)
-                _LOGGER.debug("Entities sent to Discord successfully.")
-            else:
-                _LOGGER.debug("No entities found for device %s.", device_id_of_interest)
+            await entity_manager.get_entities_for_device(device_id_of_interest, [])
+            _LOGGER.debug("get_entities_for_device call succeeded.")
         except Exception as e:
-            _LOGGER.error("Error during periodic update of entities: %s", str(e))
+            _LOGGER.error("Error during get_entities_for_device: %s", e)
 
     async def state_change_listener(event):
         """Listens for state changes and sends updates to Discord for the specific updated entity only."""
