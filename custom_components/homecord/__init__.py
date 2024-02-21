@@ -46,9 +46,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     async def update_entities_periodically(now):
         _LOGGER.debug("Periodic update fired at %s", now)
 
-       # entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
-        #if entities:
-         #   await communicator.send_to_discord(device_id_of_interest, entities)
+        entities = await entity_manager.get_entities_for_device(device_id_of_interest, entity_names_list)
+        if entities:
+            await communicator.send_to_discord(device_id_of_interest, entities)
 
     async def state_change_listener(event):
         """Listens for state changes and sends updates to Discord for the specific updated entity only."""
