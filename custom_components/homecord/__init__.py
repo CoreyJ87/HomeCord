@@ -114,9 +114,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.bus.async_listen_once("homeassistant_stop", shutdown)
     listeners.append(hass.bus.async_listen(EVENT_STATE_CHANGED, state_change_listener))
 
-    #_LOGGER.debug("Scheduling periodic updates.")
-    #async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=1))
-    #_LOGGER.debug("Periodic updates scheduled.")
+    _LOGGER.debug("Scheduling periodic updates.")
+    async_track_time_interval(hass, update_entities_periodically, timedelta(minutes=5))
+    _LOGGER.debug("Periodic updates scheduled.")
 
     _LOGGER.info("HomeCord Integration: Setup completed successfully.")
     return True
