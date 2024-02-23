@@ -53,7 +53,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         """Listens for state changes and sends updates to Discord selectively based on the entity and state."""
         entity_id = event.data.get("entity_id")
         current_stage_entity_id = 'sensor.p1s_01p00a3c0300850_current_stage'
-        current_stage_state = hass.states.get(current_stage_entity_id).state
+        entity = hass.states.get(current_stage_entity_id)
+
+        # Check if the entity exists before accessing its state
+        if entity is None:
+            _LOGGER.error(f"Entity '{current_stage_entity_id}' not found. Unable to send update.")
+            return
+        current_stage_state = entity.state
 
         # Always send updates for the current stage entity itself
         if entity_id == current_stage_entity_id:
@@ -88,7 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 # Now send only the updated entity's data
                 await communicator.send_to_discord(device_id_of_interest, [entity_data])  # Wrap entity_data in a list
 
-    async def shutdown():
+    async def shutdown(event):
         if "communicator" in hass.data[DOMAIN]:
             await hass.data[DOMAIN]["communicator"].close_websocket_connection()
 
