@@ -6,8 +6,8 @@
   "codeowners": ["@CoreyJ87"],
   "version": "1.0.0",
   "requirements": [
-  "aiohttp==3.9.3",
-  "voluptuous==0.13.1"
+  "aiohttp==3.9.5",
+  "voluptuous==0.14.2"
 ],
   "iot_class": "cloud_polling",
   "config_flow": true,
